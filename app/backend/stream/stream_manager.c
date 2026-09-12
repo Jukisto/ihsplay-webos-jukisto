@@ -280,9 +280,10 @@ static void session_finalized(IHS_Session *session, void *context) {
 
 static void session_configuring(IHS_Session *session, IHS_SessionConfig *config, void *context) {
     (void) session;
-    stream_manager_t *manager = (stream_manager_t *) context;
-    assert (manager->media != NULL);
-    config->enableHevc = stream_media_supports_hevc(manager->media);
+    (void) context;
+    // The webOS NDL decoder can advertise HEVC support but freeze after a few
+    // seconds of Steam Remote Play video. Prefer the more reliable H.264 path.
+    config->enableHevc = false;
 }
 
 static void session_connected(IHS_Session *session, void *context) {
