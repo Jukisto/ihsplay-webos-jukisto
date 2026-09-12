@@ -26,7 +26,7 @@ jobs:
         with:
           repository: "webosbrew/ares-cli-rs"
           latest: true
-          fileName: "ares-package_*.deb"
+          fileName: "ares-package_*_amd64.deb"
           out-file-path: "temp"
 
       - name: Download Homebrew Toolbox
@@ -34,7 +34,7 @@ jobs:
         with:
           repository: "webosbrew/dev-toolbox-cli"
           latest: true
-          fileName: "webosbrew-toolbox-*.deb"
+          fileName: "webosbrew-toolbox-gen-manifest_*_amd64.deb"
           out-file-path: "temp"
 
       - name: Install Tools
