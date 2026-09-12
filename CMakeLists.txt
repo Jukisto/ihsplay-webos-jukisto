@@ -118,6 +118,7 @@ target_link_libraries(ihsplay PRIVATE ${SDL2_LIBRARIES} ${OPUS_LIBRARIES} Fontco
 if (TARGET_WEBOS)
     set(IHSPLAY_FEATURE_LIBCEC OFF)
     set(IHSPLAY_FEATURE_FORCE_FULLSCREEN ON)
+    set(IHSPLAY_TARGET_WEBOS ON)
     target_link_libraries(ihsplay PRIVATE commons-luna-sync)
 
     set_target_properties(ihsplay PROPERTIES

@@ -1,6 +1,7 @@
 #include "mouse.h"
 #include "logging.h"
 #include "app.h"
+#include "config.h"
 #include "ui/app_ui.h"
 
 #include <SDL.h>
@@ -57,8 +58,8 @@ void app_indev_keypad_sdl_key_event(lv_indev_t *indev, const SDL_KeyboardEvent *
     keyboard_state_t *state = indev->driver->user_data;
     uint32_t key = key_from_keysym(&event->keysym);
     if (key == 0) {
-#ifdef SDL_WEBOS_SCANCODE_EXIT
-        if (event->state == SDL_RELEASED && event->keysym.scancode == SDL_WEBOS_SCANCODE_EXIT) {
+#if IHSPLAY_TARGET_WEBOS
+        if (event->state == SDL_RELEASED && event->keysym.scancode == SDL_SCANCODE_WEBOS_EXIT) {
             app_post_event(state->app, APP_UI_NAV_QUIT, NULL, NULL);
         }
 #endif
@@ -178,13 +179,13 @@ static uint32_t key_from_keysym(const SDL_Keysym *keysym) {
         case SDLK_TAB:
             return keysym->mod & KMOD_SHIFT ? LV_KEY_PREV : LV_KEY_NEXT;
         default:
-#ifdef SDL_WEBOS_SCANCODE_BACK
+#if IHSPLAY_TARGET_WEBOS
             switch ((int) keysym->scancode) {
-                case SDL_WEBOS_SCANCODE_BACK:
+                case SDL_SCANCODE_WEBOS_BACK:
                     return LV_KEY_ESC;
-                case SDL_WEBOS_SCANCODE_CH_UP:
+                case SDL_SCANCODE_WEBOS_CH_UP:
                     return LV_KEY_PREV;
-                case SDL_WEBOS_SCANCODE_CH_DOWN:
+                case SDL_SCANCODE_WEBOS_CH_DOWN:
                     return LV_KEY_NEXT;
                 default:
                     break;

@@ -10,8 +10,8 @@ find_program(GEN_MANIFEST_CMD webosbrew-gen-manifest)
 if (GEN_MANIFEST_CMD)
     execute_process(COMMAND "${GEN_MANIFEST_CMD}" -p "${CPACK_PACKAGE_DIRECTORY}/${CPACK_PACKAGE_FILE_NAME}.ipk"
             -o "${CPACK_PACKAGE_DIRECTORY}/${CPACK_PACKAGE_NAME}.manifest.json"
-            -i "https://github.com/mariotaku/ihsplay/raw/master/deploy/webos/largeIcon.png"
-            -l "https://github.com/mariotaku/ihsplay"
+            -i "https://raw.githubusercontent.com/$ENV{GITHUB_REPOSITORY}/$ENV{GITHUB_REF_NAME}/deploy/webos/largeIcon.png"
+            -l "https://github.com/$ENV{GITHUB_REPOSITORY}"
             )
 else ()
     message("Skip webOS homebrew manifest generation because command line tool is not found")

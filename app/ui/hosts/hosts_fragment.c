@@ -19,6 +19,7 @@ typedef struct hosts_fragment {
     app_t *app;
     lv_fragment_t *launcher_fragment;
     lv_obj_t *grid_view;
+    lv_obj_t *searching;
     lv_obj_t *msgbox;
 } hosts_fragment;
 
@@ -43,6 +44,10 @@ static void obj_deleted(lv_fragment_t *self, lv_obj_t *obj);
 static bool event_cb(lv_fragment_t *self, int code, void *data);
 
 static void hosts_changed(array_list_t *list, host_manager_hosts_change change_type, int change_index, void *context);
+
+static void back_clicked(lv_event_t *e);
+
+static void update_searching_state(hosts_fragment *fragment, array_list_t *hosts);
 
 static int host_item_count(lv_obj_t *grid, void *data);
 
@@ -118,6 +123,8 @@ static void destructor(lv_fragment_t *self) {
 static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *container) {
     hosts_fragment *fragment = (hosts_fragment *) self;
     lv_obj_t *win = app_lv_win_create(container);
+    lv_obj_t *back = lv_win_add_btn(win, LV_SYMBOL_LEFT, LV_DPX(48));
+    lv_obj_add_event_cb(back, back_clicked, LV_EVENT_CLICKED, fragment);
     lv_win_add_title(win, "Select Computer");
 
     lv_obj_t *content = lv_win_get_content(win);
@@ -141,6 +148,25 @@ static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *container) {
     lv_obj_add_event_cb(fragment->grid_view, grid_unfocused, LV_EVENT_DEFOCUSED, fragment);
     lv_obj_add_event_cb(fragment->grid_view, grid_key_cb, LV_EVENT_KEY, fragment);
 
+    fragment->searching = lv_obj_create(content);
+    lv_obj_remove_style_all(fragment->searching);
+    lv_obj_set_size(fragment->searching, LV_SIZE_CONTENT, LV_SIZE_CONTENT);
+    lv_obj_set_layout(fragment->searching, LV_LAYOUT_FLEX);
+    lv_obj_set_flex_flow(fragment->searching, LV_FLEX_FLOW_COLUMN);
+    lv_obj_set_flex_align(fragment->searching, LV_FLEX_ALIGN_CENTER, LV_FLEX_ALIGN_CENTER,
+                          LV_FLEX_ALIGN_CENTER);
+    lv_obj_clear_flag(fragment->searching, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_center(fragment->searching);
+
+    lv_obj_t *spinner = lv_spinner_create(fragment->searching, 1000, 60);
+    lv_obj_set_style_arc_width(spinner, LV_DPX(10), 0);
+    lv_obj_set_style_arc_width(spinner, LV_DPX(10), LV_PART_INDICATOR);
+    lv_obj_set_size(spinner, LV_DPX(50), LV_DPX(50));
+
+    lv_obj_t *searching_label = lv_label_create(fragment->searching);
+    lv_obj_set_style_pad_top(searching_label, LV_DPX(18), 0);
+    lv_label_set_text_static(searching_label, "Searching for computers...");
+
     return win;
 }
 
@@ -149,7 +175,9 @@ static void obj_created(lv_fragment_t *self, lv_obj_t *obj) {
     hosts_fragment *fragment = (hosts_fragment *) self;
     host_manager_t *hosts_manager = fragment->app->host_manager;
     host_manager_register_listener(hosts_manager, &host_manager_listener, fragment);
-    lv_gridview_set_data(fragment->grid_view, host_manager_get_hosts(hosts_manager));
+    array_list_t *hosts = host_manager_get_hosts(hosts_manager);
+    lv_gridview_set_data(fragment->grid_view, hosts);
+    update_searching_state(fragment, hosts);
     lv_group_t *group = app_ui_get_input_group(fragment->app->ui);
     if (group != NULL && lv_group_get_focused(group) == NULL) {
         hosts_fragment_focus_hosts(self);
@@ -173,6 +201,7 @@ static void obj_deleted(lv_fragment_t *self, lv_obj_t *obj) {
 static void hosts_changed(array_list_t *list, host_manager_hosts_change change_type, int change_index, void *context) {
     hosts_fragment *fragment = (hosts_fragment *) context;
     lv_obj_t *grid = fragment->grid_view;
+    update_searching_state(fragment, list);
     switch (change_type) {
         case HOST_MANAGER_HOSTS_NEW: {
             lv_gridview_data_change_t changes[] = {
@@ -188,6 +217,20 @@ static void hosts_changed(array_list_t *list, host_manager_hosts_change change_t
             lv_gridview_set_data_advanced(grid, list, changes, 1);
             break;
         }
+    }
+}
+
+static void back_clicked(lv_event_t *e) {
+    hosts_fragment *fragment = lv_event_get_user_data(e);
+    app_ui_pop_top_fragment(fragment->app->ui);
+}
+
+static void update_searching_state(hosts_fragment *fragment, array_list_t *hosts) {
+    if (hosts != NULL && array_list_size(hosts) > 0) {
+        lv_obj_add_flag(fragment->searching, LV_OBJ_FLAG_HIDDEN);
+    } else {
+        lv_obj_clear_flag(fragment->searching, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_move_foreground(fragment->searching);
     }
 }
 

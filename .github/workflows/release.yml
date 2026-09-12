@@ -1,23 +1,26 @@
-name: Release
+name: Build and publish webOS release
 
 on:
-  release:
-    types: [ created ]
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
 
 env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Debug
+  BUILD_TYPE: Release
 
 jobs:
   build-webos:
     runs-on: ubuntu-latest
-
     steps:
       - uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           submodules: recursive
 
-      - name: Download ares-cli-rs
+      - name: Download webOS packaging tools
         uses: robinraju/release-downloader@v1.9
         with:
           repository: "webosbrew/ares-cli-rs"
@@ -25,7 +28,7 @@ jobs:
           fileName: "ares-package_*.deb"
           out-file-path: "temp"
 
-      - name: Download Homebrew Toolbox
+      - name: Download Homebrew manifest generator
         uses: robinraju/release-downloader@v1.9
         with:
           repository: "webosbrew/dev-toolbox-cli"
@@ -33,7 +36,7 @@ jobs:
           fileName: "webosbrew-toolbox-gen-manifest_*.deb"
           out-file-path: "temp"
 
-      - name: Install Tools
+      - name: Install packaging tools
         run: sudo apt-get install ./temp/*.deb
 
       - name: Download webOS NDK
@@ -45,25 +48,29 @@ jobs:
           out-file-path: "/tmp"
 
       - name: Extract webOS NDK
-        shell: bash
         working-directory: /tmp
         run: |
           tar xzf arm-webos-linux-gnueabi_sdk-buildroot.tar.gz
           ./arm-webos-linux-gnueabi_sdk-buildroot/relocate-sdk.sh
 
-      - name: Build
+      - name: Build IPK
         env:
           TOOLCHAIN_FILE: /tmp/arm-webos-linux-gnueabi_sdk-buildroot/usr/share/buildroot/toolchainfile.cmake
-        run: ./tools/webos/easy_build.sh -DCMAKE_BUILD_TYPE=$BUILD_TYPE
+        run: ./tools/webos/easy_build.sh -DCMAKE_BUILD_TYPE="$BUILD_TYPE"
 
-      - name: Create Release (webOS)
-        id: create_release_webos
-        uses: ncipollo/release-action@v1.14.0
+      - name: Generate Homebrew repository index
+        run: |
+          ./tools/webos/create_repository.sh \
+            "$GITHUB_REPOSITORY" \
+            "$GITHUB_REF_NAME" \
+            dist/fi.jukisto.ihsplay.manifest.json \
+            dist/apps.json
+
+      - name: Publish GitHub release
+        uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          name: Release ${{ steps.tagName.outputs.tag }}
-          allowUpdates: true
-          omitNameDuringUpdate: true
-          omitBodyDuringUpdate: true
-          omitPrereleaseDuringUpdate: true
-          artifacts: dist/*.ipk,dist/*.manifest.json
+          generate_release_notes: true
+          files: |
+            dist/*.ipk
+            dist/*.manifest.json
+            dist/apps.json

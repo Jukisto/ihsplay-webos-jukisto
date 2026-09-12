@@ -30,6 +30,8 @@ static void btn_click_cb(lv_event_t *e);
 
 static void btn_key_cb(lv_event_t *e);
 
+static void back_clicked(lv_event_t *e);
+
 const lv_fragment_class_t support_fragment_class = {
         .constructor_cb = constructor,
         .create_obj_cb = create_obj,
@@ -54,6 +56,8 @@ static void constructor(lv_fragment_t *self, void *args) {
 static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
     support_fragment_t *fragment = (support_fragment_t *) self;
     lv_obj_t *win = app_lv_win_create(parent);
+    lv_obj_t *back = lv_win_add_btn(win, LV_SYMBOL_LEFT, LV_DPX(48));
+    lv_obj_add_event_cb(back, back_clicked, LV_EVENT_CLICKED, fragment);
     lv_win_add_title(win, "Support");
     lv_obj_set_size(win, LV_PCT(100), LV_PCT(100));
     fragment->win_content = lv_win_get_content(win);
@@ -137,4 +141,9 @@ static void btn_key_cb(lv_event_t *e) {
             break;
         }
     }
+}
+
+static void back_clicked(lv_event_t *e) {
+    support_fragment_t *fragment = lv_event_get_user_data(e);
+    app_ui_pop_top_fragment(fragment->app->ui);
 }
