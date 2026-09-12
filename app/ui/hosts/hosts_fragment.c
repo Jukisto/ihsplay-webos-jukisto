@@ -123,7 +123,7 @@ static void destructor(lv_fragment_t *self) {
 static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *container) {
     hosts_fragment *fragment = (hosts_fragment *) self;
     lv_obj_t *win = app_lv_win_create(container);
-    lv_obj_t *back = lv_win_add_btn(win, LV_SYMBOL_LEFT, LV_DPX(48));
+    lv_obj_t *back = app_lv_win_add_back_btn(win);
     lv_obj_add_event_cb(back, back_clicked, LV_EVENT_CLICKED, fragment);
     lv_win_add_title(win, "Select Computer");
 
