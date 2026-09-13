@@ -1,14 +1,8 @@
-diff --git a/src/session/channels/video/ch_data_video.c b/src/session/channels/video/ch_data_video.c
---- a/src/session/channels/video/ch_data_video.c
-+++ b/src/session/channels/video/ch_data_video.c
-@@ -26,1 +26,2 @@
- #include <stdlib.h>
-+#include <math.h>
-
 diff --git a/src/session/channels/ch_control_negotiation.c b/src/session/channels/ch_control_negotiation.c
+index a943e46..665b3a1 100644
 --- a/src/session/channels/ch_control_negotiation.c
 +++ b/src/session/channels/ch_control_negotiation.c
-@@ -135,8 +135,10 @@
+@@ -156,8 +156,10 @@ static void OnNegotiationInit(IHS_SessionChannel *channel, const CNegotiationIni
      PROTOBUF_C_SET_VALUE(clientConfig, enable_video_streaming, true);
      PROTOBUF_C_SET_VALUE(clientConfig, maximum_framerate_numerator, 5994);
      PROTOBUF_C_SET_VALUE(clientConfig, maximum_framerate_denominator, 100);
@@ -21,7 +15,8 @@ diff --git a/src/session/channels/ch_control_negotiation.c b/src/session/channel
      if (ihsConf.enableHevc) {
          PROTOBUF_C_SET_VALUE(clientConfig, enable_video_hevc, true);
      }
-@@ -154,5 +156,5 @@
+@@ -174,8 +176,8 @@ static void OnNegotiationInit(IHS_SessionChannel *channel, const CNegotiationIni
+                              "\t\"VideoDisplayX\"\t\"1920\"\n\t\"VideoDisplayY\"\t\"1080\"\n"
                               "\t\"VideoDisplayNameID\"\t\"JN-MD133BFHDR\"\n}\n";
      PROTOBUF_C_SET_VALUE(clientCaps, system_can_suspend, true);
 -    PROTOBUF_C_SET_VALUE(clientCaps, maximum_decode_bitrate_kbps, 30000);
@@ -29,3 +24,24 @@ diff --git a/src/session/channels/ch_control_negotiation.c b/src/session/channel
 +    PROTOBUF_C_SET_VALUE(clientCaps, maximum_decode_bitrate_kbps, 20000);
 +    PROTOBUF_C_SET_VALUE(clientCaps, maximum_burst_bitrate_kbps, 30000);
      if (ihsConf.enableHevc) {
+         PROTOBUF_C_SET_VALUE(clientCaps, supports_video_hevc, true);
+     }
+diff --git a/src/session/channels/video/ch_data_video.c b/src/session/channels/video/ch_data_video.c
+index d4f8bc4..84fc301 100644
+--- a/src/session/channels/video/ch_data_video.c
++++ b/src/session/channels/video/ch_data_video.c
+@@ -24,6 +24,7 @@
+  */
+ 
+ #include <stdlib.h>
++#include <math.h>
+ 
+ #include "session/channels/ch_data.h"
+ #include "ch_data_video.h"
+@@ -526,4 +527,4 @@ static uint64_t ReportVideoStats(int runCount, void *data) {
+                                 IHS_PACKET_ID_NEXT);
+     IHS_FrameStatsAccumulatorReset(accum);
+     return 1000;
+-}
+\ No newline at end of file
++}
