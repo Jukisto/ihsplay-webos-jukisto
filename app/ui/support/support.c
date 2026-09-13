@@ -56,7 +56,7 @@ static void constructor(lv_fragment_t *self, void *args) {
 static lv_obj_t *create_obj(lv_fragment_t *self, lv_obj_t *parent) {
     support_fragment_t *fragment = (support_fragment_t *) self;
     lv_obj_t *win = app_lv_win_create(parent);
-    lv_obj_t *back = app_lv_win_add_back_btn(win);
+    lv_obj_t *back = lv_win_add_btn(win, LV_SYMBOL_LEFT, LV_DPX(48));
     lv_obj_add_event_cb(back, back_clicked, LV_EVENT_CLICKED, fragment);
     lv_win_add_title(win, "Support");
     lv_obj_set_size(win, LV_PCT(100), LV_PCT(100));

@@ -261,22 +261,6 @@ lv_obj_t *app_lv_win_create(lv_obj_t *parent) {
     return win;
 }
 
-lv_obj_t *app_lv_win_add_back_btn(lv_obj_t *win) {
-    lv_obj_t *button = lv_win_add_btn(win, "", LV_DPX(48));
-    static lv_point_t arrow_points[] = {
-            {21, 6}, {9, 18}, {21, 30}, {9, 18}, {31, 18}
-    };
-    lv_obj_t *arrow = lv_line_create(button);
-    lv_line_set_points(arrow, arrow_points, sizeof(arrow_points) / sizeof(arrow_points[0]));
-    lv_obj_set_style_line_color(arrow, lv_color_white(), 0);
-    lv_obj_set_style_line_opa(arrow, LV_OPA_COVER, 0);
-    lv_obj_set_style_line_width(arrow, LV_DPX(3), 0);
-    lv_obj_set_style_line_rounded(arrow, true, 0);
-    lv_obj_clear_flag(arrow, LV_OBJ_FLAG_CLICKABLE);
-    lv_obj_center(arrow);
-    return button;
-}
-
 static void apply_cb(lv_theme_t *theme, lv_obj_t *obj) {
     theme_context_t *styles = theme->user_data;
     lv_obj_t *parent = lv_obj_get_parent(obj);
