@@ -22,10 +22,10 @@ if [ -z "$CI" ]; then
 fi
 
 LOW_LATENCY_PATCH="$(pwd)/tools/webos/ihslib-low-latency.patch"
-if git -C core apply --check "$LOW_LATENCY_PATCH" >/dev/null 2>&1; then
+if git -C core apply --check - < "$LOW_LATENCY_PATCH"; then
   echo "Apply webOS low-latency streaming profile"
-  git -C core apply "$LOW_LATENCY_PATCH" || exit 1
-elif ! git -C core apply --reverse --check "$LOW_LATENCY_PATCH" >/dev/null 2>&1; then
+  git -C core apply - < "$LOW_LATENCY_PATCH" || exit 1
+elif ! git -C core apply --reverse --check - < "$LOW_LATENCY_PATCH"; then
   echo "Low-latency patch does not apply cleanly."
   exit 1
 fi
