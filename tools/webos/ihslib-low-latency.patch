@@ -1,7 +1,7 @@
 diff --git a/src/session/channels/video/ch_data_video.c b/src/session/channels/video/ch_data_video.c
 --- a/src/session/channels/video/ch_data_video.c
 +++ b/src/session/channels/video/ch_data_video.c
-@@ -25,6 +25,7 @@
+@@ -25,5 +25,6 @@
  
  #include <stdlib.h>
 +#include <math.h>
