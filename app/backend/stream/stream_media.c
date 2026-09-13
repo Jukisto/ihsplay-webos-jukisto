@@ -36,7 +36,8 @@ static int video_start(IHS_Session *session, const IHS_StreamVideoConfig *config
 
 static void video_stop(IHS_Session *session, void *context);
 
-static int video_submit(IHS_Session *session, IHS_Buffer *data, IHS_StreamVideoFrameFlag flags, void *context);
+static IHS_StreamVideoSubmitResult video_submit(IHS_Session *session, IHS_Buffer *data,
+                                                IHS_StreamVideoFrameFlag flags, void *context);
 
 static int video_set_capture_size(IHS_Session *session, int width, int height, void *context);
 
@@ -201,7 +202,8 @@ static void video_stop(IHS_Session *session, void *context) {
     SS4S_PlayerVideoClose(media_session->player);
 }
 
-static int video_submit(IHS_Session *session, IHS_Buffer *data, IHS_StreamVideoFrameFlag flags, void *context) {
+static IHS_StreamVideoSubmitResult video_submit(IHS_Session *session, IHS_Buffer *data,
+                                                IHS_StreamVideoFrameFlag flags, void *context) {
     (void) session;
     stream_media_session_t *media_session = (stream_media_session_t *) context;
     SS4S_VideoFeedFlags sflgs = 0;
@@ -240,7 +242,22 @@ static int video_submit(IHS_Session *session, IHS_Buffer *data, IHS_StreamVideoF
         }
         SDL_UnlockMutex(media_session->lock);
     }
-    return SS4S_PlayerVideoFeed(media_session->player, data->data + data->offset, data->size, sflgs);
+    SS4S_VideoFeedResult result = SS4S_PlayerVideoFeed(media_session->player,
+                                                        data->data + data->offset, data->size, sflgs);
+    switch (result) {
+        case SS4S_VIDEO_FEED_OK:
+            return IHS_StreamVideoSubmitOK;
+        case SS4S_VIDEO_FEED_NOT_READY:
+        case SS4S_VIDEO_FEED_REQUEST_KEYFRAME:
+        case SS4S_VIDEO_FEED_ERROR:
+            // NDL errors are recoverable after flushing dependent frames and
+            // requesting a fresh keyframe from the Steam host.
+            commons_log_warn("Media", "Video decoder requested recovery: %d", result);
+            return IHS_StreamVideoSubmitReportLost;
+        default:
+            commons_log_error("Media", "Unexpected video feed result: %d", result);
+            return IHS_StreamVideoSubmitError;
+    }
 }
 
 static int video_set_capture_size(IHS_Session *session, int width, int height, void *context) {
