@@ -1,3 +1,14 @@
+diff --git a/src/session/channels/video/ch_data_video.c b/src/session/channels/video/ch_data_video.c
+--- a/src/session/channels/video/ch_data_video.c
++++ b/src/session/channels/video/ch_data_video.c
+@@ -25,6 +25,7 @@
+ 
+ #include <stdlib.h>
++#include <math.h>
+ 
+ #include "session/channels/ch_data.h"
+ #include "ch_data_video.h"
+
 diff --git a/src/session/channels/ch_control_negotiation.c b/src/session/channels/ch_control_negotiation.c
 --- a/src/session/channels/ch_control_negotiation.c
 +++ b/src/session/channels/ch_control_negotiation.c
