@@ -112,10 +112,8 @@ void host_manager_session_request(host_manager_t *manager, const IHS_HostInfo *h
             .streamingEnable.audio = true,
             .streamingEnable.video = true,
             .streamingEnable.input = true,
-            // Keep webOS hardware decoding stable on older LG models.
-            // The 1080p HEVC stream can overrun the decoder and freeze after a few seconds.
-            .maxResolution.x = 1280,
-            .maxResolution.y = 720,
+            .maxResolution.x = 1920,
+            .maxResolution.y = 1080,
     };
     IHS_ClientStreamingRequest(manager->client, host, &request);
 }
