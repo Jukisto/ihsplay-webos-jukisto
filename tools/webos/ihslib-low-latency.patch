@@ -1,0 +1,24 @@
+diff --git a/src/session/channels/ch_control_negotiation.c b/src/session/channels/ch_control_negotiation.c
+--- a/src/session/channels/ch_control_negotiation.c
++++ b/src/session/channels/ch_control_negotiation.c
+@@ -135,8 +135,10 @@
+     PROTOBUF_C_SET_VALUE(clientConfig, enable_video_streaming, true);
+     PROTOBUF_C_SET_VALUE(clientConfig, maximum_framerate_numerator, 5994);
+     PROTOBUF_C_SET_VALUE(clientConfig, maximum_framerate_denominator, 100);
+-    PROTOBUF_C_SET_VALUE(clientConfig, quality, k_EStreamQualityBalanced);
+-    PROTOBUF_C_SET_VALUE(clientConfig, maximum_bitrate_kbps, 30000);
++    // Favor encoder speed and bounded queues over compression quality on webOS.
++    // 20 Mbps is ample for 1080p60 HEVC while avoiding 90 Mbps burst buffering.
++    PROTOBUF_C_SET_VALUE(clientConfig, quality, k_EStreamQualityFast);
++    PROTOBUF_C_SET_VALUE(clientConfig, maximum_bitrate_kbps, 20000);
+     if (ihsConf.enableHevc) {
+         PROTOBUF_C_SET_VALUE(clientConfig, enable_video_hevc, true);
+     }
+@@ -154,5 +156,5 @@
+                              "\t\"VideoDisplayNameID\"\t\"JN-MD133BFHDR\"\n}\n";
+     PROTOBUF_C_SET_VALUE(clientCaps, system_can_suspend, true);
+-    PROTOBUF_C_SET_VALUE(clientCaps, maximum_decode_bitrate_kbps, 30000);
+-    PROTOBUF_C_SET_VALUE(clientCaps, maximum_burst_bitrate_kbps, 90000);
++    PROTOBUF_C_SET_VALUE(clientCaps, maximum_decode_bitrate_kbps, 20000);
++    PROTOBUF_C_SET_VALUE(clientCaps, maximum_burst_bitrate_kbps, 30000);
+     if (ihsConf.enableHevc) {
