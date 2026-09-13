@@ -1,0 +1,183 @@
+diff --git a/src/hid/report.c b/src/hid/report.c
+index 00d9a6a..4cc5c24 100644
+--- a/src/hid/report.c
++++ b/src/hid/report.c
+@@ -36,13 +36,18 @@
+ static int ComputeDelta(const uint8_t *previous, const uint8_t *current, size_t inputLen, size_t reportLen,
+                         uint8_t *delta);
+ 
++static size_t DeltaMaskSize(size_t reportLen) {
++    return (reportLen + 7) >> 3;
++}
++
+ void IHS_HIDReportHolderInit(IHS_HIDReportHolder *holder, uint32_t deviceId) {
+     chidmessage_from_remote__device_input_reports__device_input_report__init(&holder->report);
+     PROTOBUF_C_SET_VALUE(holder->report, device, deviceId);
+     IHS_BufferInit(&holder->dataBuffer, 256, 8192);
+     IHS_ArrayListInit(&holder->reportItems, sizeof(CHIDDeviceInputReport));
+     IHS_ArrayListInit(&holder->reportPointers, sizeof(CHIDDeviceInputReport *));
+-    holder->report.reports = holder->reportPointers.data;
++    IHS_ArrayListInit(&holder->reportOffsets, sizeof(size_t));
++    holder->report.reports = NULL;
+     holder->reportLength = 0;
+     holder->lastSent = NULL;
+     holder->lastSentLen = 0;
+@@ -53,6 +58,7 @@ void IHS_HIDReportHolderInit(IHS_HIDReportHolder *holder, uint32_t deviceId) {
+ 
+ void IHS_HIDReportHolderDeinit(IHS_HIDReportHolder *holder) {
+     holder->report.reports = NULL;
++    IHS_ArrayListDeinit(&holder->reportOffsets);
+     IHS_ArrayListDeinit(&holder->reportPointers);
+     IHS_ArrayListDeinit(&holder->reportItems);
+     IHS_BufferClear(&holder->dataBuffer, true);
+@@ -60,14 +66,8 @@ void IHS_HIDReportHolderDeinit(IHS_HIDReportHolder *holder) {
+     free(holder->pendingCurrent);
+ }
+ 
+-// Capture `current` as the pending state for the next send and decide whether to skip
+-// because the bytes are byte-identical to what was last flushed. Allocates the two scratch
+-// buffers lazily and grows them on demand. Returns true if the caller should drop.
+-static bool DedupAndStash(IHS_HIDReportHolder *holder, const uint8_t *current, size_t len) {
+-    if (holder->lastSent != NULL && holder->lastSentLen == len &&
+-        memcmp(holder->lastSent, current, len) == 0) {
+-        return true;
+-    }
++// Capture `current` as the pending state for the next send.
++static void Stash(IHS_HIDReportHolder *holder, const uint8_t *current, size_t len) {
+     if (len > holder->bufferCapacity) {
+         holder->lastSent = realloc(holder->lastSent, len);
+         holder->pendingCurrent = realloc(holder->pendingCurrent, len);
+@@ -75,7 +75,11 @@ static bool DedupAndStash(IHS_HIDReportHolder *holder, const uint8_t *current, s
+     }
+     memcpy(holder->pendingCurrent, current, len);
+     holder->pendingCurrentLen = len;
+-    return false;
++}
++
++static bool SameAsLastSent(const IHS_HIDReportHolder *holder, const uint8_t *current, size_t len) {
++    return holder->lastSent != NULL && holder->lastSentLen == len &&
++           memcmp(holder->lastSent, current, len) == 0;
+ }
+ 
+ void IHS_HIDReportHolderSetReportLength(IHS_HIDReportHolder *holder, size_t reportLen) {
+@@ -84,9 +88,11 @@ void IHS_HIDReportHolderSetReportLength(IHS_HIDReportHolder *holder, size_t repo
+ 
+ void IHS_HIDReportHolderAddFull(IHS_HIDReportHolder *holder, const uint8_t *current, size_t len) {
+     assert(holder->reportLength >= len);
+-    if (DedupAndStash(holder, current, len)) {
++    if (SameAsLastSent(holder, current, len)) {
+         return;
+     }
++    Stash(holder, current, len);
++    size_t offset = holder->dataBuffer.size;
+     uint8_t *data = IHS_BufferPointerForAppend(&holder->dataBuffer, len);
+     memcpy(data, current, len);
+     holder->dataBuffer.size += len;
+@@ -94,19 +100,22 @@ void IHS_HIDReportHolderAddFull(IHS_HIDReportHolder *holder, const uint8_t *curr
+ 
+     chiddevice_input_report__init(item);
+     item->has_full_report = true;
+-    item->full_report.data = data;
++    item->full_report.data = NULL;
+     item->full_report.len = len;
+ 
++    IHS_ArrayListAppend(&holder->reportOffsets, &offset);
+     IHS_ArrayListAppend(&holder->reportPointers, &item);
+     holder->report.n_reports = holder->reportItems.size;
+ }
+ 
+ void IHS_HIDReportHolderAddDelta(IHS_HIDReportHolder *holder, const uint8_t *previous, const uint8_t *current,
+                                  size_t len) {
+-    if (DedupAndStash(holder, current, len)) {
+-        return;
+-    }
+-    uint8_t *data = IHS_BufferPointerForAppend(&holder->dataBuffer, holder->reportLength);
++    // Delta reports form a chain. Dropping a delta that happens to match the
++    // last flushed full state leaves every following delta anchored to a state
++    // the host never received.
++    Stash(holder, current, len);
++    size_t offset = holder->dataBuffer.size;
++    uint8_t *data = IHS_BufferPointerForAppend(&holder->dataBuffer, DeltaMaskSize(holder->reportLength) + len);
+     int deltaLen = ComputeDelta(previous, current, len, holder->reportLength, data);
+     holder->dataBuffer.size += deltaLen;
+     // Send the data and CRC
+@@ -115,11 +124,12 @@ void IHS_HIDReportHolderAddDelta(IHS_HIDReportHolder *holder, const uint8_t *pre
+ 
+     chiddevice_input_report__init(item);
+     item->has_delta_report = true;
+-    item->delta_report.data = data;
++    item->delta_report.data = NULL;
+     item->delta_report.len = deltaLen;
+     PROTOBUF_C_P_SET_VALUE(item, delta_report_crc, crc);
+     PROTOBUF_C_P_SET_VALUE(item, delta_report_size, len);
+ 
++    IHS_ArrayListAppend(&holder->reportOffsets, &offset);
+     IHS_ArrayListAppend(&holder->reportPointers, &item);
+     holder->report.n_reports = holder->reportItems.size;
+ }
+@@ -128,6 +138,18 @@ IHS_HIDDeviceReportMessage *IHS_HIDReportHolderGetMessage(IHS_HIDReportHolder *h
+     if (holder->reportItems.size == 0) {
+         return NULL;
+     }
++    for (size_t i = 0; i < holder->reportItems.size; i++) {
++        CHIDDeviceInputReport *item = IHS_ArrayListGet(&holder->reportItems, i);
++        size_t offset = *(size_t *) IHS_ArrayListGet(&holder->reportOffsets, i);
++        uint8_t *data = IHS_BufferPointerAt(&holder->dataBuffer, offset);
++        if (item->has_full_report) {
++            item->full_report.data = data;
++        } else {
++            item->delta_report.data = data;
++        }
++        *(CHIDDeviceInputReport **) IHS_ArrayListGet(&holder->reportPointers, i) = item;
++    }
++    holder->report.reports = holder->reportPointers.data;
+     return &holder->report;
+ }
+ 
+@@ -136,6 +158,7 @@ void IHS_HIDReportHolderResetMessage(IHS_HIDReportHolder *holder) {
+     IHS_BufferClear(&holder->dataBuffer, false);
+     IHS_ArrayListClear(&holder->reportItems);
+     IHS_ArrayListClear(&holder->reportPointers);
++    IHS_ArrayListClear(&holder->reportOffsets);
+     // Promote the most recent pending state to lastSent so the next dedup check
+     // compares against what just went out on the wire.
+     if (holder->pendingCurrentLen > 0) {
+@@ -149,7 +172,7 @@ void IHS_HIDReportHolderResetMessage(IHS_HIDReportHolder *holder) {
+ 
+ static int ComputeDelta(const uint8_t *previous, const uint8_t *current, size_t inputLen, size_t reportLen,
+                         uint8_t *delta) {
+-    int size = (int) (reportLen + 7) >> 3;
++    int size = (int) DeltaMaskSize(reportLen);
+     memset(delta, 0, size);
+     for (size_t i = 0; i < inputLen; ++i) {
+         if (previous[i] == current[i]) {
+@@ -160,4 +183,4 @@ static int ComputeDelta(const uint8_t *previous, const uint8_t *current, size_t
+         size++;
+     }
+     return size;
+-}
+\ No newline at end of file
++}
+diff --git a/src/hid/report.h b/src/hid/report.h
+index 97ec564..98bdcd0 100644
+--- a/src/hid/report.h
++++ b/src/hid/report.h
+@@ -57,6 +57,11 @@ typedef struct IHS_HIDReportHolder {
+      * List of (CHIDDeviceInputReport*).
+      */
+     IHS_ArrayList reportPointers;
++    /**
++     * Per-report offsets into dataBuffer. Raw pointers are bound only after
++     * all arrays have stopped growing.
++     */
++    IHS_ArrayList reportOffsets;
+     /**
+      * Data length for single report item. Will be used for delta calculation, etc.
+      */
+@@ -95,4 +100,4 @@ void IHS_HIDReportHolderAddDelta(IHS_HIDReportHolder *holder, const uint8_t *pre
+  */
+ IHS_HIDDeviceReportMessage *IHS_HIDReportHolderGetMessage(IHS_HIDReportHolder *holder);
+ 
+-void IHS_HIDReportHolderResetMessage(IHS_HIDReportHolder *holder);
+\ No newline at end of file
++void IHS_HIDReportHolderResetMessage(IHS_HIDReportHolder *holder);

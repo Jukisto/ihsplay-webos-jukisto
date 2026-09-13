@@ -21,14 +21,25 @@ if [ -z "$CI" ]; then
   git submodule update --init --recursive
 fi
 
-LOW_LATENCY_PATCH="$(pwd)/tools/webos/ihslib-low-latency.patch"
-if git -C core apply --check - < "$LOW_LATENCY_PATCH"; then
-  echo "Apply webOS low-latency streaming profile"
-  git -C core apply - < "$LOW_LATENCY_PATCH" || exit 1
-elif ! git -C core apply --reverse --check - < "$LOW_LATENCY_PATCH"; then
-  echo "Low-latency patch does not apply cleanly."
-  exit 1
-fi
+apply_core_patch() {
+  local patch_name="$1"
+  local description="$2"
+  local patch_path
+  patch_path="$(pwd)/tools/webos/$patch_name"
+
+  if git -C core apply --check - < "$patch_path"; then
+    echo "Apply $description"
+    git -C core apply - < "$patch_path" || exit 1
+  elif git -C core apply --reverse --check - < "$patch_path"; then
+    echo "$description already applied"
+  else
+    echo "$description does not apply cleanly."
+    exit 1
+  fi
+}
+
+apply_core_patch "ihslib-low-latency.patch" "webOS low-latency streaming profile"
+apply_core_patch "ihslib-xbox-hid.patch" "Xbox HID report stability fixes"
 
 if [ -z "${TOOLCHAIN_FILE}" ]; then
   echo "Setup environment"
